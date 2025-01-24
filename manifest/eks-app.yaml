@@ -1,22 +1,23 @@
+# eks-app.yaml
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: Service   
 metadata:
-  name: eks-app-pvc
+  name: eks-app-service
 spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
-  storageClassName: gp2
-
+  selector:
+    app.kubernetes.io/name: eks-app
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: eks-app-deployment
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: eks-app
@@ -27,28 +28,7 @@ spec:
     spec:
       containers:
       - name: eks-app-container
-        image: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPO }}:${{ github.sha }}
+        image: 463470973103.dkr.ecr.ap-northeast-2.amazonaws.com:91ace4f29d92b2fd68484f94ccfb7f85359a08e8
         ports:
           - protocol: TCP
             containerPort: 8080
-        volumeMounts:
-          - name: eks-app-storage
-            mountPath: /data
-      volumes:
-        - name: eks-app-storage
-          persistentVolumeClaim:
-            claimName: eks-app-pvc
-
----
-apiVersion: v1
-kind: Service   
-metadata:
-  name: eks-app-service
-spec:
-  selector:
-    app.kubernetes.io/name: eks-app
-  type: ClusterIP
-  ports:
-  - protocol: TCP
-    port: 8080
-    targetPort: 8080
