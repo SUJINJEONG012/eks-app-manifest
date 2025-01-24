@@ -1,50 +1,48 @@
+# eks-db.yaml
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: db-pvc
+  name: db-claim
 spec:
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   resources:
     requests:
-      storage: 30Mi
-  storageClassName: db-storage # 동적 프로비저닝을 위한 스토리지 클래스 지정
-
+      storage: 10Gi
+  storageClassName: db-sc
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql-service
+  name: db-service
   labels:
-    app: mysql
+    app: db
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - protocol: TCP
       port: 3306
       targetPort: 3306
   selector:
-    app: mysql
-
+    app: eks-db
 ---
-
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: db-deployment
+  name: db-sfs
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: mysql
+      app: eks-db
   template:
     metadata:
       labels:
-        app: mysql
+        app: eks-db
     spec:
       containers:
-        - name: mysql-container
+        - name: db-container
           image: mysql
           imagePullPolicy: IfNotPresent
           ports:
@@ -52,10 +50,16 @@ spec:
           env:
             - name: MYSQL_ROOT_PASSWORD
               value: k8s12345
+            - name: MYSQL_DATABASE
+              value: app
+            - name: MYSQL_USER
+              value: app
+            - name: MYSQL_PASSWORD
+              value: app12345
           volumeMounts:
-            - mountPath: /var/lib/mysql
-              name: mysqldata
+            - name: db-storage
+              mountPath: /data
       volumes:
-        - name: mysqldata
+        - name: db-storage
           persistentVolumeClaim:
-            claimName: db-pvc
+            claimName: db-claim
